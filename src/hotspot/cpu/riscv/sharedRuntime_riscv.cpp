@@ -191,7 +191,7 @@ size_t SharedRuntime::trampoline_size() {
 
 void SharedRuntime::generate_trampoline(MacroAssembler *masm, address destination) {
   int32_t offset = 0;
-  __ movptr_with_offset(t0, destination, offset);
+  __ movptr(t0, destination, offset);
   __ jalr(x0, t0, offset);
 }
 

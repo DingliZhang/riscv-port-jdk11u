@@ -369,7 +369,7 @@ void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
   Assembler::IncompressibleRegion ir(&a);  // Fixed length: see NativeGeneralJump::get_instruction_size()
 
   int32_t offset = 0;
-  a.movptr_with_offset(t0, entry, offset); // lui, addi, slli, addi, slli
+  a.movptr(t0, entry, offset); // lui, addi, slli, addi, slli
   a.jalr(x0, t0, offset); // jalr
 
   ICache::invalidate_range(code_pos, instruction_size);
