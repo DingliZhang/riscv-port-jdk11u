@@ -632,12 +632,13 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
   __ load_parameter(0, x10);
   __ load_parameter(1, x11);
 
+  address target = NULL;
   if (UseCompressedOops) {
-    __ mv(ra, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_narrow));
+    target = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_narrow);
   } else {
-    __ mv(ra, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier));
+    target = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier);
   }
-  __ jalr(ra);
+  __ call(target);
   __ mv(t0, x10);
   __ pop_call_clobbered_registers();
   __ mv(x10, t0);
@@ -686,11 +687,11 @@ address ShenandoahBarrierSetAssembler::generate_shenandoah_lrb(StubCodeGenerator
   __ push_call_clobbered_registers();
 
   if (UseCompressedOops) {
-    __ mv(ra, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_narrow));
+    target = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_narrow);
   } else {
-    __ mv(ra, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier));
+    target = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier);
   }
-  __ jalr(ra);
+  __ call(target);
   __ mv(t0, x10);
   __ pop_call_clobbered_registers();
   __ mv(x10, t0);

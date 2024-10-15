@@ -539,7 +539,13 @@ public:
   }
 
   // mv
-  void mv(Register Rd, address addr)          { li(Rd, (int64_t)addr); }
+  void mv(Register Rd, address addr)                  { li(Rd, (int64_t)addr); }
+  void mv(Register Rd, address addr, int32_t &offset) {
+    // Split address into a lower 12-bit sign-extended offset and the remainder,
+    // so that the offset could be encoded in jalr or load/store instruction.
+    offset = ((int32_t)(int64_t)addr << 20) >> 20;
+    li(Rd, (int64_t)addr - offset);
+  }
 
   inline void mv(Register Rd, int imm64)                { li(Rd, (int64_t)imm64); }
   inline void mv(Register Rd, long imm64)               { li(Rd, (int64_t)imm64); }
@@ -548,7 +554,7 @@ public:
   inline void mv(Register Rd, unsigned long imm64)      { li(Rd, (int64_t)imm64); }
   inline void mv(Register Rd, unsigned long long imm64) { li(Rd, (int64_t)imm64); }
 
-  inline void mvw(Register Rd, int32_t imm32) { mv(Rd, imm32); }
+  inline void mvw(Register Rd, int32_t imm32)           { mv(Rd, imm32); }
 
   void mv(Register Rd, Address dest);
   void mv(Register Rd, RegisterOrConstant src);
@@ -818,6 +824,18 @@ public:
   void vmnot_m(VectorRegister vd, VectorRegister vs);
   void vncvt_x_x_w(VectorRegister vd, VectorRegister vs, VectorMask vm = unmasked);
   void vfneg_v(VectorRegister vd, VectorRegister vs);
+
+  void call(const address dest, Register temp = t0) {
+    assert_cond(dest != NULL);
+    assert(temp != noreg, "temp must not be empty register!");
+    int32_t offset = 0;
+    mv(temp, dest, offset);
+    jalr(x1, temp, offset);
+  }
+
+  void ret() {
+    jalr(x0, x1, 0);
+  }
 
 private:
 

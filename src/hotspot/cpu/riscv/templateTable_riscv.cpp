@@ -401,7 +401,7 @@ void TemplateTable::fast_aldc(bool wide)
 
     // Stash null_sentinel address to get its value later
     int32_t offset = 0;
-    __ movptr(rarg, Universe::the_null_sentinel_addr(), offset);
+    __ mv(rarg, Universe::the_null_sentinel_addr(), offset);
     __ ld(tmp, Address(rarg, offset));
     __ bne(result, tmp, notNull);
     __ mv(result, zr);  // NULL object reference
