@@ -321,7 +321,8 @@ void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes) {
   // first instruction with a jump. For this action to be legal we
   // must ensure that this first instruction is a J, JAL or NOP.
   // Make it a NOP.
-  nop();
+  IncompressibleRegion ir(this);  // keep the nop as 4 bytes for patching.
+  nop();  // 4 bytes
 
   assert(bang_size_in_bytes >= framesize, "stack bang size incorrect");
   // Make sure there is enough stack space for this method's activation.
@@ -336,6 +337,7 @@ void C1_MacroAssembler::remove_frame(int framesize) {
 
 
 void C1_MacroAssembler::verified_entry() {
+  assert_alignment(pc());
 }
 
 void C1_MacroAssembler::load_parameter(int offset_in_words, Register reg) {

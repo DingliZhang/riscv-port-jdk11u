@@ -256,6 +256,7 @@ void MacroAssembler::set_last_Java_frame(Register last_java_sp,
     set_last_Java_frame(last_java_sp, last_java_fp, target(L), tmp);
   } else {
     L.add_patch_at(code(), locator());
+    IncompressibleRegion ir(this);  // the label address will be patched back.
     set_last_Java_frame(last_java_sp, last_java_fp, pc() /* Patched later */, tmp);
   }
 }
@@ -384,10 +385,13 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
   push_reg(RegSet::of(ra, t0, t1, c_rarg0), sp);
 
   mv(c_rarg0, reg); // c_rarg0 : x10
-  // The length of the instruction sequence emitted should be independent
-  // of the values of the local char buffer address so that the size of mach
-  // nodes for scratch emit and normal emit matches.
-  movptr(t0, (address)b);
+  {
+    // The length of the instruction sequence emitted should not depend
+    // on the address of the char buffer so that the size of mach nodes for
+    // scratch emit and normal emit matches.
+    IncompressibleRegion ir(this);  // Fixed length
+    movptr(t0, (address) b);
+  }
 
   // call indirectly to solve generation ordering problem
   int32_t offset = 0;
@@ -423,10 +427,13 @@ void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
     ld(x10, addr);
   }
 
-  // The length of the instruction sequence emitted should be independent
-  // of the values of the local char buffer address so that the size of mach
-  // nodes for scratch emit and normal emit matches.
-  movptr(t0, (address)b);
+  {
+    // The length of the instruction sequence emitted should not depend
+    // on the address of the char buffer so that the size of mach nodes for
+    // scratch emit and normal emit matches.
+    IncompressibleRegion ir(this);  // Fixed length
+    movptr(t0, (address) b);
+  }
 
   // call indirectly to solve generation ordering problem
   int32_t offset = 0;
@@ -566,6 +573,7 @@ void MacroAssembler::unimplemented(const char* what) {
 }
 
 void MacroAssembler::emit_static_call_stub() {
+  IncompressibleRegion ir(this);  // Fixed length: see CompiledStaticCall::to_interp_stub_size().
   // CompiledDirectStaticCall::set_to_interpreted knows the
   // exact layout of this stub.
 
@@ -747,14 +755,13 @@ void MacroAssembler::la(Register Rd, const address &dest) {
 }
 
 void MacroAssembler::la(Register Rd, const Address &adr) {
-  code_section()->relocate(pc(), adr.rspec());
-  relocInfo::relocType rtype = adr.rspec().reloc()->type();
-
   switch (adr.getMode()) {
     case Address::literal: {
+      relocInfo::relocType rtype = adr.rspec().reloc()->type();
       if (rtype == relocInfo::none) {
         mv(Rd, (intptr_t)(adr.target()));
       } else {
+        relocate(adr.rspec());
         movptr(Rd, adr.target());
       }
       break;
@@ -771,6 +778,7 @@ void MacroAssembler::la(Register Rd, const Address &adr) {
 }
 
 void MacroAssembler::la(Register Rd, Label &label) {
+  IncompressibleRegion ir(this);   // the label address may be patched back.
   la(Rd, target(label));
 }
 
@@ -1289,7 +1297,7 @@ void MacroAssembler::reinit_heapbase() {
 
 void MacroAssembler::mv(Register Rd, Address dest) {
   assert(dest.getMode() == Address::literal, "Address mode should be Address::literal");
-  code_section()->relocate(pc(), dest.rspec());
+  relocate(dest.rspec());
   movptr(Rd, dest.target());
 }
 
@@ -2363,6 +2371,7 @@ void MacroAssembler::far_jump(Address entry, CodeBuffer *cbuf, Register tmp) {
   assert(ReservedCodeCacheSize < 4*G, "branch out of range");
   assert(CodeCache::find_blob(entry.target()) != NULL,
          "destination of far call not found in code cache");
+  IncompressibleRegion ir(this);  // Fixed length: see MacroAssembler::far_branch_size()
   int32_t offset = 0;
   if (far_branches()) {
     // We can use auipc + jalr here because we know that the total size of
@@ -2380,6 +2389,7 @@ void MacroAssembler::far_call(Address entry, CodeBuffer *cbuf, Register tmp) {
   assert(ReservedCodeCacheSize < 4*G, "branch out of range");
   assert(CodeCache::find_blob(entry.target()) != NULL,
          "destination of far call not found in code cache");
+  IncompressibleRegion ir(this);  // Fixed length: see MacroAssembler::far_branch_size()
   int32_t offset = 0;
   if (far_branches()) {
     // We can use auipc + jalr here because we know that the total size of
@@ -2636,7 +2646,7 @@ void MacroAssembler::la_patchable(Register reg1, const Address &dest, int32_t &o
   assert(is_valid_riscv64_address(dest.target()), "bad address");
   assert(dest.getMode() == Address::literal, "la_patchable must be applied to a literal address");
 
-  code_section()->relocate(pc(), dest.rspec());
+  relocate(dest.rspec());
   // RISC-V doesn't compute a page-aligned address, in order to partially
   // compensate for the use of *signed* offsets in its base+disp12
   // addressing mode (RISC-V's PC-relative reach remains asymmetric
@@ -2930,7 +2940,7 @@ void MacroAssembler::read_polling_page(Register dest, address page, relocInfo::r
 // Read the polling page.  The address of the polling page must
 // already be in r.
 void MacroAssembler::read_polling_page(Register dest, int32_t offset, relocInfo::relocType rtype) {
-  code_section()->relocate(pc(), rtype);
+  relocate(rtype);
   lwu(zr, Address(dest, offset));
 }
 
@@ -2945,8 +2955,7 @@ void  MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
   }
 #endif
   int oop_index = oop_recorder()->find_index(obj);
-  RelocationHolder rspec = oop_Relocation::spec(oop_index);
-  code_section()->relocate(pc(), rspec);
+  relocate(oop_Relocation::spec(oop_index));
   li32(dst, 0xDEADBEEF);
   zero_extend(dst, dst, 32);
 }
@@ -2957,9 +2966,8 @@ void  MacroAssembler::set_narrow_klass(Register dst, Klass* k) {
   int index = oop_recorder()->find_index(k);
   assert(!Universe::heap()->is_in_reserved(k), "should not be an oop");
 
-  RelocationHolder rspec = metadata_Relocation::spec(index);
-  code_section()->relocate(pc(), rspec);
   narrowKlass nk = Klass::encode_klass(k);
+  relocate(metadata_Relocation::spec(index));
   li32(dst, nk);
   zero_extend(dst, dst, 32);
 }
@@ -2994,6 +3002,11 @@ address MacroAssembler::trampoline_call(Address entry, CodeBuffer* cbuf) {
   }
 
   if (cbuf != NULL) { cbuf->set_insts_mark(); }
+#ifdef ASSERT
+  if (entry.rspec().type() != relocInfo::runtime_call_type) {
+    assert_alignment(pc());
+  }
+#endif
   relocate(entry.rspec());
   if (!far_branches()) {
     jal(entry.target());
