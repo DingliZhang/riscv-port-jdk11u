@@ -74,11 +74,13 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   address fast_entry = __ pc();
 
   Address target(SafepointSynchronize::safepoint_counter_addr());
-  __ relocate(target.rspec(), [&] {
+  {
+    __ relocate(target.rspec());
+    Assembler::IncompressibleRegion ir(masm);
     int32_t offset;
     __ la_patchable(rcounter_addr, target, offset);
     __ addi(rcounter_addr, rcounter_addr, offset);
-  });
+  }
 
   Label slow;
   Address safepoint_counter_addr(rcounter_addr, 0);
@@ -153,11 +155,13 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   {
     __ enter();
     ExternalAddress target(slow_case_addr);
-    __ relocate(target.rspec(), [&] {
+    {
+      __ relocate(target.rspec());
+      Assembler::IncompressibleRegion ir(masm);
       int32_t offset;
       __ la_patchable(t0, target, offset);
       __ jalr(x1, t0, offset);
-    });
+    }
     __ leave();
     __ ret();
   }
