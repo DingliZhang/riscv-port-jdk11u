@@ -983,8 +983,6 @@ int MacroAssembler::bitset_to_regs(unsigned int bitset, unsigned char* regs) {
 // Return the number of words pushed
 int MacroAssembler::push_reg(unsigned int bitset, Register stack) {
   DEBUG_ONLY(int words_pushed = 0;)
-  CompressibleRegion cr(this);
-
   unsigned char regs[32];
   int count = bitset_to_regs(bitset, regs);
   // reserve one slot to align for odd count
@@ -1005,8 +1003,6 @@ int MacroAssembler::push_reg(unsigned int bitset, Register stack) {
 
 int MacroAssembler::pop_reg(unsigned int bitset, Register stack) {
   DEBUG_ONLY(int words_popped = 0;)
-  CompressibleRegion cr(this);
-
   unsigned char regs[32];
   int count = bitset_to_regs(bitset, regs);
   // reserve one slot to align for odd count
@@ -1028,7 +1024,6 @@ int MacroAssembler::pop_reg(unsigned int bitset, Register stack) {
 // Push floating-point registers in the bitset supplied.
 // Return the number of words pushed
 int MacroAssembler::push_fp(unsigned int bitset, Register stack) {
-  CompressibleRegion cr(this);
   DEBUG_ONLY(int words_pushed = 0;)
   unsigned char regs[32];
   int count = bitset_to_regs(bitset, regs);
@@ -1049,7 +1044,6 @@ int MacroAssembler::push_fp(unsigned int bitset, Register stack) {
 }
 
 int MacroAssembler::pop_fp(unsigned int bitset, Register stack) {
-  CompressibleRegion cr(this);
   DEBUG_ONLY(int words_popped = 0;)
   unsigned char regs[32];
   int count = bitset_to_regs(bitset, regs);
@@ -1070,7 +1064,6 @@ int MacroAssembler::pop_fp(unsigned int bitset, Register stack) {
 }
 
 void MacroAssembler::push_call_clobbered_registers_except(RegSet exclude) {
-  CompressibleRegion cr(this);
   // Push integer registers x7, x10-x17, x28-x31.
   push_reg(RegSet::of(x7) + RegSet::range(x10, x17) + RegSet::range(x28, x31) - exclude, sp);
 
@@ -1085,7 +1078,6 @@ void MacroAssembler::push_call_clobbered_registers_except(RegSet exclude) {
 }
 
 void MacroAssembler::pop_call_clobbered_registers_except(RegSet exclude) {
-  CompressibleRegion cr(this);
   int offset = 0;
   for (int i = 0; i < 32; i++) {
     if (i <= f7->encoding() || i >= f28->encoding() || (i >= f10->encoding() && i <= f17->encoding())) {
@@ -1099,18 +1091,15 @@ void MacroAssembler::pop_call_clobbered_registers_except(RegSet exclude) {
 
 // Push all the integer registers, except zr(x0) & sp(x2) & gp(x3) & tp(x4).
 void MacroAssembler::pusha() {
-  CompressibleRegion cr(this);
   push_reg(RegSet::of(x1) + RegSet::range(x5, x31), sp);
 }
 
 // Pop all the integer registers, except zr(x0) & sp(x2) & gp(x3) & tp(x4).
 void MacroAssembler::popa() {
-  CompressibleRegion cr(this);
   pop_reg(RegSet::of(x1) + RegSet::range(x5, x31), sp);
 }
 
 void MacroAssembler::push_CPU_state() {
-  CompressibleRegion cr(this);
   // integer registers, except zr(x0) & ra(x1) & sp(x2) & gp(x3) & tp(x4)
   push_reg(RegSet::range(x5, x31), sp);
 
@@ -1122,8 +1111,6 @@ void MacroAssembler::push_CPU_state() {
 }
 
 void MacroAssembler::pop_CPU_state() {
-  CompressibleRegion cr(this);
-
   // float registers
   for (int i = 0; i < 32; i++) {
     fld(as_FloatRegister(i), Address(sp, i * wordSize));
