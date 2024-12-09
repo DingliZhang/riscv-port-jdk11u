@@ -485,9 +485,9 @@ public:
   void NAME(Register Rd, const Address &adr, Register temp = t0) {                                 \
     switch (adr.getMode()) {                                                                       \
       case Address::literal: {                                                                     \
-        relocate(adr.rspec(), [&] {                                                                \
-          NAME(Rd, adr.target());                                                                  \
-        });                                                                                        \
+        relocate(adr.rspec());                                                                     \
+        IncompressibleRegion ir(this);                                                             \
+        NAME(Rd, adr.target());                                                                    \
         break;                                                                                     \
       }                                                                                            \
       case Address::base_plus_offset: {                                                            \
@@ -560,9 +560,9 @@ public:
   void NAME(FloatRegister Rd, const Address &adr, Register temp = t0) {                            \
     switch (adr.getMode()) {                                                                       \
       case Address::literal: {                                                                     \
-        relocate(adr.rspec(), [&] {                                                                \
-          NAME(Rd, adr.target(), temp);                                                            \
-        });                                                                                        \
+        relocate(adr.rspec());                                                                     \
+        IncompressibleRegion ir(this);                                                             \
+        NAME(Rd, adr.target(), temp);                                                              \
         break;                                                                                     \
       }                                                                                            \
       case Address::base_plus_offset: {                                                            \
@@ -704,9 +704,9 @@ public:
     switch (adr.getMode()) {                                                                       \
       case Address::literal: {                                                                     \
         assert_different_registers(Rs, temp);                                                      \
-        relocate(adr.rspec(), [&] {                                                                \
-          NAME(Rs, adr.target(), temp);                                                            \
-        });                                                                                        \
+        relocate(adr.rspec());                                                                     \
+        IncompressibleRegion ir(this);                                                             \
+        NAME(Rs, adr.target(), temp);                                                              \
         break;                                                                                     \
       }                                                                                            \
       case Address::base_plus_offset: {                                                            \
@@ -748,9 +748,9 @@ public:
   void NAME(FloatRegister Rs, const Address &adr, Register temp = t0) {                            \
     switch (adr.getMode()) {                                                                       \
       case Address::literal: {                                                                     \
-        relocate(adr.rspec(), [&] {                                                                \
-          NAME(Rs, adr.target(), temp);                                                            \
-        });                                                                                        \
+        relocate(adr.rspec());                                                                     \
+        IncompressibleRegion ir(this);                                                             \
+        NAME(Rs, adr.target(), temp);                                                              \
         break;                                                                                     \
       }                                                                                            \
       case Address::base_plus_offset: {                                                            \

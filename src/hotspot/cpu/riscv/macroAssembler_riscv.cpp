@@ -347,11 +347,13 @@ void MacroAssembler::call_VM_base(Register oop_result,
     Label ok;
     beqz(t0, ok);
     RuntimeAddress target(StubRoutines::forward_exception_entry());
-    relocate(target.rspec(), [&] {
+    {
+      relocate(target.rspec());
+      IncompressibleRegion ir(this);
       int32_t offset;
       la_patchable(t0, target, offset);
       jalr(x0, t0, offset);
-    });
+    }
     bind(ok);
   }
 
@@ -398,11 +400,13 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
 
   // call indirectly to solve generation ordering problem
   ExternalAddress target(StubRoutines::verify_oop_subroutine_entry_address());
-  relocate(target.rspec(), [&] {
+  {
+    relocate(target.rspec());
+    IncompressibleRegion ir(this);
     int32_t offset;
     la_patchable(t1, target, offset);
     ld(t1, Address(t1, offset));
-  });
+  }
   jalr(t1);
 
   pop_reg(RegSet::of(ra, t0, t1, c_rarg0), sp);
@@ -443,11 +447,13 @@ void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
 
   // call indirectly to solve generation ordering problem
   ExternalAddress target(StubRoutines::verify_oop_subroutine_entry_address());
-  relocate(target.rspec(), [&] {
+  {
+    relocate(target.rspec());
+    IncompressibleRegion ir(this);
     int32_t offset;
     la_patchable(t1, target, offset);
     ld(t1, Address(t1, offset));
-  });
+  }
   jalr(t1);
 
   pop_reg(RegSet::of(ra, t0, t1, c_rarg0), sp);
@@ -770,9 +776,9 @@ void MacroAssembler::la(Register Rd, const Address &adr) {
       if (rtype == relocInfo::none) {
         mv(Rd, (intptr_t)(adr.target()));
       } else {
-        relocate(adr.rspec(), [&] {
-          movptr(Rd, adr.target());
-        });
+        relocate(adr.rspec());
+        IncompressibleRegion ir(this);
+        movptr(Rd, adr.target());
       }
       break;
     }
@@ -1285,21 +1291,25 @@ void MacroAssembler::reinit_heapbase() {
     if (Universe::is_fully_initialized()) {
       mv(xheapbase, Universe::narrow_ptrs_base());
     } else {
-      ExternalAddress target((address)CompressedOops::ptrs_base_addr());
-      relocate(target.rspec(), [&] {
+      ExternalAddress target((address)Universe::narrow_ptrs_base_addr());
+      {
+        relocate(target.rspec());
+        IncompressibleRegion ir(this);
         int32_t offset;
         la_patchable(xheapbase, target, offset);
         ld(xheapbase, Address(xheapbase, offset));
-      });
+      }
     }
   }
 }
 
 void MacroAssembler::mv(Register Rd, Address dest) {
   assert(dest.getMode() == Address::literal, "Address mode should be Address::literal");
-  relocate(dest.rspec(), [&] {
+  {
+    relocate(dest.rspec());
+    IncompressibleRegion ir(this);
     movptr(Rd, dest.target());
-  });
+  }
 }
 
 void MacroAssembler::mv(Register Rd, RegisterOrConstant src) {
@@ -1647,11 +1657,13 @@ SkipIfEqual::SkipIfEqual(MacroAssembler* masm, const bool* flag_addr, bool value
   int32_t offset = 0;
   _masm = masm;
   ExternalAddress target((address)flag_addr);
-  _masm->relocate(target.rspec(), [&] {
+  {
+    _masm->relocate(target.rspec());
+    Assembler::IncompressibleRegion ir(_masm);
     int32_t offset;
     _masm->la_patchable(t0, target, offset);
     _masm->lbu(t0, Address(t0, offset));
-  });
+  }
   _masm->beqz(t0, _label);
 }
 
@@ -2380,12 +2392,14 @@ void MacroAssembler::far_jump(Address entry, CodeBuffer *cbuf, Register tmp) {
   if (far_branches()) {
     // We can use auipc + jalr here because we know that the total size of
     // the code cache cannot exceed 2Gb.
-    relocate(entry.rspec(), [&] {
+    {
+      relocate(entry.rspec());
+      IncompressibleRegion ir(this);
       int32_t offset;
       la_patchable(tmp, entry, offset);
       if (cbuf != NULL) { cbuf->set_insts_mark(); }
       jalr(x0, tmp, offset);
-    });
+    }
   } else {
     if (cbuf != NULL) { cbuf->set_insts_mark(); }
     j(entry);
@@ -2400,12 +2414,14 @@ void MacroAssembler::far_call(Address entry, CodeBuffer *cbuf, Register tmp) {
   if (far_branches()) {
     // We can use auipc + jalr here because we know that the total size of
     // the code cache cannot exceed 2Gb.
-    relocate(entry.rspec(), [&] {
+    {
+      relocate(entry.rspec());
+      IncompressibleRegion ir(this);
       int32_t offset;
       la_patchable(tmp, entry, offset);
       if (cbuf != NULL) { cbuf->set_insts_mark(); }
       jalr(x1, tmp, offset); // link
-    });
+    }
   } else {
     if (cbuf != NULL) { cbuf->set_insts_mark(); }
     jal(entry); // link
@@ -2695,22 +2711,26 @@ void MacroAssembler::reserved_stack_check() {
     enter();   // RA and FP are live.
     mv(c_rarg0, xthread);
     RuntimeAddress target(CAST_FROM_FN_PTR(address, SharedRuntime::enable_stack_reserved_zone));
-    relocate(target.rspec(), [&] {
+    {
+      relocate(target.rspec());
+      IncompressibleRegion ir(this);
       int32_t offset;
       la_patchable(t0, target, offset);
       jalr(x1, t0, offset);
-    });
+    }
     leave();
 
     // We have already removed our own frame.
     // throw_delayed_StackOverflowError will think that it's been
     // called by our caller.
     target = RuntimeAddress(StubRoutines::throw_delayed_StackOverflowError_entry());
-    relocate(target.rspec(), [&] {
+    {
+      relocate(target.rspec());
+      IncompressibleRegion ir(this);
       int32_t offset;
       la_patchable(t0, target, offset);
       jalr(x0, t0, offset);
-    });
+    }
     should_not_reach_here();
 
     bind(no_reserved_zone_enabling);
@@ -2952,11 +2972,11 @@ void MacroAssembler::read_polling_page(Register dest, address page, relocInfo::r
 }
 
 // Read the polling page.  The address of the polling page must
-// already be in r.
+// already be in dest.
 void MacroAssembler::read_polling_page(Register dest, int32_t offset, relocInfo::relocType rtype) {
-  relocate(rtype, [&] {
-    lwu(zr, Address(r, offset));
-  });
+  relocate(rtype);
+  IncompressibleRegion ir(this);
+  lwu(zr, Address(dest, offset));
 }
 
 void  MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
@@ -2970,9 +2990,11 @@ void  MacroAssembler::set_narrow_oop(Register dst, jobject obj) {
   }
 #endif
   int oop_index = oop_recorder()->find_index(obj);
-  relocate(oop_Relocation::spec(oop_index), [&] {
+  {
+    relocate(oop_Relocation::spec(oop_index));
+    IncompressibleRegion ir(this);
     li32(dst, 0xDEADBEEF);
-  });
+  }
   zero_extend(dst, dst, 32);
 }
 
@@ -2983,9 +3005,11 @@ void  MacroAssembler::set_narrow_klass(Register dst, Klass* k) {
   assert(!Universe::heap()->is_in_reserved(k), "should not be an oop");
 
   narrowKlass nk = Klass::encode_klass(k);
-  relocate(metadata_Relocation::spec(index), [&] {
+  {
+    relocate(metadata_Relocation::spec(index));
+    IncompressibleRegion ir(this);
     li32(dst, nk);
-  });
+  }
   zero_extend(dst, dst, 32);
 }
 
@@ -3024,13 +3048,15 @@ address MacroAssembler::trampoline_call(Address entry, CodeBuffer* cbuf) {
     assert_alignment(pc());
   }
 #endif
-  relocate(entry.rspec(), [&] {
+  {
+    relocate(entry.rspec());
+    IncompressibleRegion ir(this);
     if (!far_branches()) {
       jal(entry.target());
     } else {
       jal(pc());
     }
-  });
+  }
   // just need to return a non-null address
   postcond(pc() != badAddress);
   return pc();
@@ -3075,7 +3101,9 @@ address MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
   RelocationHolder rh = trampoline_stub_Relocation::spec(code()->insts()->start() +
                                                          insts_call_instruction_offset);
   const int stub_start_offset = offset();
-  relocate(rh, [&] {
+  {
+    relocate(rh);
+    IncompressibleRegion ir(this);
     // Now, create the trampoline stub's code:
     // - load the call
     // - call
@@ -3087,7 +3115,7 @@ address MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
            "should be");
     assert(offset() % wordSize == 0, "bad alignment");
     emit_int64((int64_t)dest);
-  });
+  }
 
   const address stub_start_addr = addr_at(stub_start_offset);
 
@@ -3155,11 +3183,13 @@ void MacroAssembler::decrementw(const Address dst, int32_t value) {
 
 void MacroAssembler::cmpptr(Register src1, Address src2, Label& equal) {
   assert_different_registers(src1, t0);
-  relocate(src2.rspec(), [&] {
+  {
+    relocate(src2.rspec());
+    IncompressibleRegion ir(this);
     int32_t offset;
     la_patchable(t0, src2, offset);
     ld(t0, Address(t0, offset));
-  });
+  }
   beq(src1, t0, equal);
 }
 

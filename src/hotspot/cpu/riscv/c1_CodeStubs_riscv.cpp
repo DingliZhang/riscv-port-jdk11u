@@ -88,11 +88,13 @@ void RangeCheckStub::emit_code(LIR_Assembler* ce) {
     stub_id = Runtime1::throw_range_check_failed_id;
   }
   RuntimeAddress target(Runtime1::entry_for(stub_id));
-  __ relocate(target.rspec(), [&] {
+  {
+    __ relocate(target.rspec());
+    Assembler::IncompressibleRegion ir(ce->masm());
     int32_t offset;
     __ la_patchable(ra, target, offset);
     __ jalr(ra, ra, offset);
-  });
+  }
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   debug_only(__ should_not_reach_here());

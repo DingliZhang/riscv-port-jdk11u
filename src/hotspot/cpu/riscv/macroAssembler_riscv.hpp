@@ -843,11 +843,11 @@ private:
       ld(dest, const_addr);
     } else {
       InternalAddress target(const_addr.target());
-      relocate(target.rspec(), [&] {
-        int32_t offset;
-        la_patchable(dest, target, offset);
-        ld(dest, Address(dest, offset));
-      });
+      relocate(target.rspec());
+      IncompressibleRegion ir(this);
+      int32_t offset;
+      la_patchable(dest, target, offset);
+      ld(dest, Address(dest, offset));
     }
   }
 
